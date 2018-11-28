@@ -1,0 +1,6 @@
+stats_adm start => start statistics tool
+stats_adm stop => stop statisics tool
+orchestrator_adm start api => start orchastrator
+orchestrator_adm stop api  => stop orchastrator
+orchestrator_adm stop container host_ip => ex.(orchestrator_adm stop br_2 10.102.7.123)
+orchestrator_adm start appplication host_ip => ex.(orchestrator_adm start ipgw 10.102.7.123)

@@ -1,0 +1,33 @@
+#!/usr/bin/env /usr/bin/python3.6
+import sys
+import psutil
+import os
+import signal
+
+option = sys.argv[1]
+
+
+
+def start():
+	print("Starting stats_collector ...")
+	os.system("/usr/bin/python3.6 /home/pkolev/Containers/testbed_2/stats_collector.py >/dev/null &")
+
+def stop():
+	
+	pstring = "stats_collector.py"
+	for line in os.popen("ps ax | grep " + pstring + " | grep -v grep"):
+		fields = line.split()
+		pid = fields[0]
+
+	print("Stopping stats_collector ...")
+	os.kill(int(pid), signal.SIGKILL)
+
+def main():
+	if option == "start":
+		start()
+	elif option == "stop":
+		stop()
+	else:
+		print("Usage : stats_adm start/stop")
+
+main()

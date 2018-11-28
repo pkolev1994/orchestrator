@@ -1,0 +1,56 @@
+#!/usr/bin/env /usr/bin/python3.6
+import sys
+import psutil
+import os
+import signal
+import socket
+
+option = sys.argv[1]
+option_2 = sys.argv[2]
+HOST = 'localhost'
+PORT = 11001
+
+
+
+def socket_connect(first_option, second_option, third_option = False):
+	try:
+		orchastrator_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		orchastrator_socket.connect((HOST, PORT))
+	except socket.error as e:
+		print("error while connecting, master doesn't respond :: {}".format(e))
+	if not third_option:
+		msg = "{} {}".format(first_option, second_option)
+	else:
+		msg = "{} {} {}".format(first_option, second_option, third_option)		
+	orchastrator_socket.sendall(msg.encode("utf-8"))
+	orchastrator_socket.close()
+
+
+def main():
+
+	if option == 'release':
+		socket_connect(option, option_2)
+	elif option == "start" and option_2 == "api":
+		print("Starting orchastrator api ...")
+		os.chdir("/home/pkolev/Containers/testbed_2/")
+		os.system("/usr/bin/python3.6 orchestration_api.py >/dev/null &")
+	elif option == "stop" and option_2 == "api":
+		pstring = "orchestration_api.py"
+		for line in os.popen("ps ax | grep " + pstring + " | grep -v grep"):
+			fields = line.split()
+			pid = fields[0]
+		print("Stopping orchestration_api ...")
+		os.kill(int(pid), signal.SIGKILL)
+	elif option == 'stop':
+		option_3 = sys.argv[3]
+		socket_connect(option, option_2, option_3)
+	elif option == 'start':
+		option_3 = sys.argv[3]
+		socket_connect(option, option_2, option_3)
+	else:
+		print("Usage of orchastrator_adm : ")
+		print("orchastrator_adm start/stop api")
+		print("orchastrator_adm start/stop container_name node_ip")
+		print("orchastrator_adm release node_ip")
+
+main()
