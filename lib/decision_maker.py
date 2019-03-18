@@ -5,13 +5,14 @@ import sys
 from collections import Counter
 
 #custom lib
+sys.path.append('/aux0/customer/containers/orchestrator/')
 from lib.containering import parse_config
 from lib.containering import update_config
 from lib.swarming import SwarmManagment
 from lib.containering import ContainerManagement
 sys.path.append('/aux0/customer/containers/ocpytools/lib/')
-from lib.logger import Logger
-from lib.etcd_client import EtcdManagement
+from logger import Logger
+from etcd_client import EtcdManagement
 
 
 class DecisionMaker():
@@ -203,19 +204,10 @@ class DecisionMaker():
 				else:
 					application_number += app_by_hosts[host][application]
 			average_app_number = application_number/host_number
-			# print("Average => {}".format(average_app_number))
-			# print("Appp => {}".format(parse_config('orchastrator.json')[app_per_node]))
 			logger.info("Aplication {} ||| Average => {}\tApp_per_node => {}". \
 				format(application, average_app_number, orchestrator_conf[app_per_node]))
 			logger.clear_handler()
 			###logic for adding node to the swarm
-
-			###orchastrator.json way
-			# if average_app_number >= parse_config('orchastrator.json')[app_per_node]:				
-			# 	if len(parse_config('orchastrator.json')['available_servers']) != 0:
-			# 		new_server = parse_config('orchastrator.json')['available_servers'][0]
-			# 		swarm_manager.join_server_swarm(host_ip = parse_config('orchastrator.json')['available_servers'][0])
-			###orchastrator.json way
 			###etcd way
 			if average_app_number >= float(orchestrator_conf[app_per_node]):
 				if len(int(orchestrator_conf['available_servers'])) != 0:

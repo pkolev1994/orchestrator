@@ -2,7 +2,7 @@ import docker
 import paramiko
 import re
 import json
-import scp
+# import scp
 import socket
 
 #custom libs

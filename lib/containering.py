@@ -5,8 +5,8 @@ import sys
 from ast import literal_eval
 ###custom libs
 sys.path.append('/aux0/customer/containers/ocpytools/lib/')
-from lib.logger import Logger
-from lib.etcd_client import EtcdManagement
+from logger import Logger
+from etcd_client import EtcdManagement
 
 def parse_config(json_file):
 	"""
@@ -132,22 +132,58 @@ class ContainerManagement():
 		images = literal_eval(self.etcd_manager.read_key("/platform/orchestrator/images"))
 		logger = Logger(filename = "orchestrator", logger_name = "ContainerManagement run_container", dirname="/aux1/ocorchestrator/")
 		docker_api = self.get_docker_api(host_ip)
+		lowlevel_docker_api = self.get_docker_api_lowlevel(host_ip)
 		oc_containers = self.get_container_names()
+		###24.01.2019 Pruning containers from all hosts with exited status before runinig someone else
+		for host_ip_2 in self.swarm_servers:
+			client = self.get_docker_api(host_ip_2)
+			client.containers.prune(filters=None)
+			logger.info("Pruning crashed containers from host_ip {}".format(host_ip_2))
+		###24.01.2019 Pruning containers from all hosts with exited status before runinig someone else
 		logger.info("Aplication {} will be runned on server => {}".format(application, host_ip))
+		###### 27.02.2019 Checking if image is available locally
+		try:
+			docker_api.images.get(images[application])
+		except(docker.errors.ImageNotFound,docker.errors.APIError):
+			logger.info("Image {} was not found on {}".format(images[application], \
+															host_ip))
+			match = re.match(r'(.*)\:(.*?$)', images[application], flags=re.I|re.S)
+			if docker_api.images.pull(match.group(1), tag=match.group(2)):
+				logger.info("Image {} was pulled successfully locally on {}". \
+							format(images[application], host_ip))
+		###### 27.02.2019 Checking if image is available locally
 		if not "{}_1".format(application) in oc_containers:
 			logger.info("First application container should be runned=> {} with this ip => {} from image {}" \
 						.format("{}_1".format(application), \
 								self.roles_config[application]["{}_1".format(application)], \
 								images[application]))
-			runned_container = docker_api.containers. \
-						create(image = "{}". \
-						format(images[application]), \
-						hostname = "{}_1".format(application), name = "{}_1".format(application), \
-						privileged = True, detach=True)
-			docker_api.networks.get(self.etcd_manager.get_network_name()). \
-				connect(runned_container, \
-				ipv4_address=self.roles_config[application]["{}_1".format(application)])
-			runned_container.start()
+			#### 27.02.2019 create and start container in specific network
+			networking_config = lowlevel_docker_api.create_networking_config({
+				self.etcd_manager.get_network_name(): lowlevel_docker_api.create_endpoint_config(
+					ipv4_address=self.roles_config[application]["{}_1".format(application)])
+			})
+			runned_container = lowlevel_docker_api.create_container( \
+						image = images[application], \
+						hostname = "{}_1".format(application), \
+						name = "{}_1".format(application), \
+						detach=True, \
+						environment=["ETCD_HOSTNAME={}".format(host_ip)], \
+						networking_config=networking_config)
+			lowlevel_docker_api.start(container = runned_container.get('Id'))
+			#### 27.02.2019 create and start container in specific network
+			######old way
+			# runned_container = docker_api.containers. \
+			# 			create(image = "{}". \
+			# 			format(images[application]), \
+			# 			hostname = "{}_1".format(application), name = "{}_1".format(application), \
+			# 			privileged = True, detach=True, \
+			# 			environment=["ETCD_HOSTNAME={}".format(host_ip)],
+			# 			auto_remove=True)
+			# docker_api.networks.get(self.etcd_manager.get_network_name()). \
+			# 	connect(runned_container, \
+			# 	ipv4_address=self.roles_config[application]["{}_1".format(application)])
+			# runned_container.start()
+			######old way
 		else:
 			for role_config in self.roles_config[application].keys():
 				if not role_config in oc_containers:
@@ -157,23 +193,57 @@ class ContainerManagement():
 					### to the network 
 					### 2nd => create the container, then connect it to the 
 					### network and then start it
-
 					# runned_container = docker_api.containers. \
 					# 			run(image = "g2.pslab.opencode.com:5000/{}1:v2". \
 					# 			format(application), \
 					# 			hostname = role_config, name = role_config, \
 					# 			privileged = True, detach=True)
-					runned_container = docker_api.containers. \
-								create(image = "{}". \
-								format(images[application]), \
-								hostname = role_config, name = role_config, \
-								privileged = True, detach=True)
-					docker_api.networks.get(self.etcd_manager.get_network_name()). \
-						connect(runned_container, \
-						ipv4_address=self.roles_config[application][role_config])
-					runned_container.start()
+
+					######old way
+					# runned_container = docker_api.containers. \
+					# 			create(image = "{}". \
+					# 			format(images[application]), \
+					# 			hostname = role_config, name = role_config, \
+					# 			privileged = True, detach=True, \
+					# 			environment=["ETCD_HOSTNAME={}".format(host_ip)],
+					# 			auto_remove=True)
+					# docker_api.networks.get(self.etcd_manager.get_network_name()). \
+					# 	connect(runned_container, \
+					# 	ipv4_address=self.roles_config[application][role_config])
+					# runned_container.start()
+					######old way
+
+					#### 27.02.2019 create and start container in specific network
+					networking_config = lowlevel_docker_api.create_networking_config({
+						self.etcd_manager.get_network_name(): lowlevel_docker_api.create_endpoint_config(
+							ipv4_address=self.roles_config[application][role_config])
+					})
+					runned_container = lowlevel_docker_api.create_container( \
+									image = images[application], \
+									hostname = role_config, \
+									name = role_config, \
+									detach=True, \
+									environment=["ETCD_HOSTNAME={}".format(host_ip)], \
+									networking_config=networking_config)
+					lowlevel_docker_api.start(container = runned_container.get('Id'))
+					#### 27.02.2019 create and start container in specific network
 					break
 		logger.clear_handler()
+
+	def stop_container_2(self, name):
+		"""
+		Stopping container
+		"""
+		logger = Logger(filename = "orchestrator", logger_name = "ContainerManagement stop_container_2", dirname="/aux1/ocorchestrator/")
+		host_ip = self.get_host_by_container(name)
+		client = self.get_docker_api(host_ip)
+		container_names = self.get_container_names()
+		container_names[name].stop(timeout = 30)
+		logger.info("Exiting from orchestration func because we stop a container")
+		logger.info("=== Pruned  stopped containers ===")
+		logger.clear_handler()
+		client.containers.prune(filters=None)
+
 
 	def stop_container(self, name, host_ip):
 		"""
@@ -198,6 +268,17 @@ class ContainerManagement():
 			host_ip(str)
 		"""
 		return docker.DockerClient(base_url='tcp://{}:2375'.format(host_ip))
+
+
+	@staticmethod
+	def get_docker_api_lowlevel(host_ip):
+		"""
+		Get docker api client
+		Args:
+				host_ip(str)
+		"""
+		return docker.APIClient(base_url='tcp://{}:2375'.format(host_ip))
+
 
 	def get_container_names(self):
 		"""
@@ -227,3 +308,17 @@ class ContainerManagement():
 			container_names.append(container.name)
 
 		return container_names		
+
+
+	def get_host_by_container(self, container_name):
+		###orchastrator.json way
+		# for host in parse_config('orchastrator.json')['swarm_servers']:
+		###orchastrator.json way
+		###etcd way
+		orchestrator_conf = self.etcd_manager.get_etcd_orchestrator_config()['platform']['orchestrator']
+		for host in orchestrator_conf['swarm_servers']:
+		###etcd way
+			docker_api = self.get_docker_api(host)
+			for container in docker_api.containers.list():
+				if container.name == container_name:
+					return host
