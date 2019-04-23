@@ -1,7 +1,7 @@
 Summary: Opencode orchestrator for managing docker containers
 Name: ocorchestrator
 Version: 1.1.1
-Release: 5%{?dist}%{?ocrel}
+Release: 6%{?dist}%{?ocrel}
 BuildArch: noarch
 URL: http://www.opencode.com
 License: Commercial

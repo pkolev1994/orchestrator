@@ -12,7 +12,7 @@ from ast import literal_eval
 sys.path.append('/aux0/customer/containers/orchestrator/')
 from lib.decision_maker import DecisionMaker
 from lib.stats import StatsCollector
-from lib.swarming import SwarmManagment
+# from lib.swarming import SwarmManagment
 from lib.containering import ContainerManagement
 from lib.containering import parse_config
 from lib.containering import update_config
@@ -22,15 +22,23 @@ from etcd_client import EtcdManagement
 
 
 
-def get_obj_instances():
+
+def get_initial_obj_instances():
 	"""
 	Returns:
 		tuple
 	"""
 	return (DecisionMaker(), \
-			SwarmManagment(), \
-			ContainerManagement(), \
-			Logger(filename = "orchestrator", logger_name="Orchestrator API", dirname="/aux1/ocorchestrator/"))
+			EtcdManagement(), \
+			ContainerManagement())
+
+
+def get_obj_instances():
+	"""
+	Returns:
+		tuple
+	"""
+	return (Logger(filename = "orchestrator", logger_name="Orchestrator API", dirname="/aux1/ocorchestrator/"))
 
 
 def processing_admin_requests(admin_socket, decision_maker, container_manager, logger):
@@ -40,16 +48,15 @@ def processing_admin_requests(admin_socket, decision_maker, container_manager, l
 		admin_request = None
 		try:
 			admin_clientsocket, admin_adr = admin_socket.accept()
-			logger.info("Admin request from {} === {}".format(admin_adr[0], admin_adr[1]))
 			admin_request = admin_clientsocket.recv(1024).decode()
 		except BlockingIOError:
-			logger.info("There aren't any request from orchestrator_adm"\
-						" in the admin_socket on port 11001")
+			# logger.info("There aren't any request from orchestrator_adm"\
+			# 			" in the admin_socket on port 11001")
+			pass
 		if admin_request:
 			admin_requests.append(admin_request)
 			logger.info("Received command from orchestrator_adm => {}".format(admin_request))
 		else:
-			logger.info("No requests from orchestrator_adm")
 			flag = False
 	if admin_requests:
 		for req in admin_requests:
@@ -67,8 +74,7 @@ def processing_admin_requests(admin_socket, decision_maker, container_manager, l
 				match = re.match(r'release\s+(.+?$)', req, flags=re.I|re.S)
 				logger.info("Node => {} will be released by admin request".format(match.group(1)))
 				decision_maker.release_node(match.group(1))
-
-	return DecisionMaker()
+		decision_maker.update_platform_status()
 
 
 def processing_stats(stats_socket, logger):
@@ -95,24 +101,12 @@ def looking_for_minimum_quota(etcd_manager, decision_maker, container_manager, l
 	logger.info("Platform => {}".format(decision_maker.update_platform_status()))
 	for app in apps_count:
 		min_app = "{}_min".format(app)
-###orchastrator.json way
-		# while apps_count[app] < parse_config('orchastrator.json')[min_app]:
-###orchastrator.json way
-###etcd way
 		while apps_count[app] < int(etcd_manager.get_etcd_orchestrator_config()['platform']['orchestrator'][min_app]):
-###etcd way
 			logger.info("Running container from app {} because of minimum quota limitation".format(app))
 			host = decision_maker.making_host_decision(app, decision = 'up')
 			container_manager.run_container(host_ip = host, application = app)
-			###new object to take the new platform configuration
-			decision_maker = DecisionMaker()
-			container_manager = ContainerManagement()
-			###new object to take the new platform configuration
 			apps_count = decision_maker.calculating_app_on_hosts()
-			logger.info("Appps count => {}".format(apps_count))
-			time.sleep(10)
-
-	return DecisionMaker()
+			time.sleep(1)
 
 
 def ensure_floating_container(etcd_manager, logger, decision_maker):
@@ -128,11 +122,9 @@ def ensure_floating_container(etcd_manager, logger, decision_maker):
 			if app in apps[host]:
 				apps_containers_list = apps_containers_list + list(apps[host][app].keys())
 		apps_containers[app] = apps_containers_list
-
-	# logger.info("LISTS => {}".format(apps_containers))
 	for app in app_types:
 		app_flag = etcd_manager.get_floating_container("float_{}".format(app))
-		logger.info("FLoat container => {} is => {}".format("float_{}".format(app), app_flag))
+		logger.info("Float container => {} is => {}".format("float_{}".format(app), app_flag))
 		if app_flag:
 			if app_flag not in apps_containers[app]:
 				logger.info("Floating container is down => {}, it will be replace with {}". \
@@ -147,7 +139,6 @@ def ensure_floating_container(etcd_manager, logger, decision_maker):
 
 def ensure_first_container_is_runned(etcd_manager, decision_maker, container_manager, logger):
 
-	# logger.info("")
 	apps = literal_eval(etcd_manager.get_platform_status())
 	app_types = etcd_manager.get_application_instances()
 	apps_containers = {}
@@ -158,13 +149,14 @@ def ensure_first_container_is_runned(etcd_manager, decision_maker, container_man
 			if app in apps[host]:
 				apps_containers_list = apps_containers_list + list(apps[host][app].keys())
 		apps_containers[app] = apps_containers_list
-
 	for app in app_types:
 		if "{}_1".format(app) not in apps_containers[app]:
 			host = decision_maker.making_host_decision(app, decision = 'up')
-			logger.info("Because First app is not running || App for increment => {} on host => {}".format(app, host))
-			container_manager.run_container(host_ip = host, application = app)
-
+			logger.info("Because First app is not running || App for increment" \
+						" => {} on host => {}".format("{}_1".format(app), host))
+			container_manager.run_container_name(host_ip = host, \
+												application = app, \
+												container_hostname = "{}_1".format(app))
 
 
 def main():
@@ -183,7 +175,7 @@ def main():
 	######## port 11001 => for orchestrator_adm request
 
 	######## port 11000 => listen for stats_collector tool
-	etcd_manager = EtcdManagement()
+	decision_maker, etcd_manager, container_manager = get_initial_obj_instances()
 	dynamic_scaling = etcd_manager.get_etcd_orchestrator_config()['platform']['orchestrator']['dynamic_scaling']
 	if re.search("False", dynamic_scaling, re.I|re.S):
 		dynamic_scaling = False
@@ -200,9 +192,12 @@ def main():
 
 
 	while True:
-		decision_maker, swarm_manager, container_manager, logger = get_obj_instances()
+		logger = get_obj_instances()
 		app_for_incremnting = None
 		app_for_decrementing = None
+		########## 2019.04.02
+		decision_maker.update_platform_status()
+		########## 2019.04.02
 		# dynamic_scaling = bool(etcd_manager. \
 		# 				get_etcd_orchestrator_config()['platform']['orchestrator']['dynamic_scaling'])
 
@@ -228,18 +223,15 @@ def main():
 		### ensure floating ip by application
 		# ensure_floating_container(etcd_manager, logger, decision_maker)
 		### ensure floating ip by application
-
-		###
-		### Ensure that first container is runned for each app 
+		######## processing admin_requests
+		processing_admin_requests(admin_socket, decision_maker, container_manager, logger)
+		######## processing admin_requests
+		### Ensure that first container is runned for each app
 		ensure_first_container_is_runned(etcd_manager, decision_maker, container_manager, logger)
 		### Ensure that first container is runned for each app 
-		logger.info("State before admin requests => {}".format(decision_maker.apps_by_hosts))
-		decision_maker = processing_admin_requests(admin_socket, decision_maker, container_manager, logger)
-		logger.info("State after admin requests => {}".format(decision_maker.apps_by_hosts))
-	######## processing admin_requests
 
 	###Running container if minimum quota is not applied
-		decision_maker = looking_for_minimum_quota(etcd_manager, decision_maker, container_manager, logger)
+		looking_for_minimum_quota(etcd_manager, decision_maker, container_manager, logger)
 	###Running container if minimum quota is not applied
 
 	#######processing stats from stats socket
@@ -273,11 +265,8 @@ def main():
 			# 	# 	break
 			# print("2 QUEUE for increment app => {}".format(increment_queue_per_app))
 			# print("2 QUEUE for decrement app => {}".format(decrement_queue_per_app))
-			logger.info("2 QUEUE for increment app => {}".format(increment_queue_per_app))
-			logger.info("2 QUEUE for decrement app => {}".format(decrement_queue_per_app))
-
-
-
+			logger.info("QUEUE for increment app => {}".format(increment_queue_per_app))
+			logger.info("QUEUE for decrement app => {}".format(decrement_queue_per_app))
 			if increment_queue_per_app:
 				app_for_incremnting = increment_queue_per_app.popleft()
 				# print("App for increment => {}".format(app_for_incremnting))
@@ -312,7 +301,6 @@ def main():
 						logger.info("There isn't any node that can be released from the orchastrator api")
 
 ############## 2018.11.07 microplatform cutting logic for stats
-
 		logger.info("Waiting 15 seconds for the next cycle")
 		logger.clear_handler()
 		time.sleep(15)

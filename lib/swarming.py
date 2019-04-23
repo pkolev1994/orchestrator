@@ -20,8 +20,8 @@ class SwarmManagment():
 		"""
 		Constructor of swarm manager
 		Args:
-			available_servers(list)
-			swarm_servers(list)
+			available_nodes(list)
+			platform_nodes(list)
 			user(str)
 			password(str)
 			master_node(str)
@@ -31,8 +31,8 @@ class SwarmManagment():
 		###orchastrator.json way
 		# self.ssh_client = paramiko.SSHClient()
 		# self.ssh_client.load_system_host_keys()
-		# self.available_servers = parse_config("orchastrator.json")["available_servers"]
-		# self.swarm_servers = parse_config("orchastrator.json")["swarm_servers"]
+		# self.available_nodes = parse_config("orchastrator.json")["available_nodes"]
+		# self.platform_nodes = parse_config("orchastrator.json")["platform_nodes"]
 		# self.user = parse_config("orchastrator.json")["user"]
 		# self.password = parse_config("orchastrator.json")["password"]
 		# self.master_nodes = parse_config("orchastrator.json")["master_nodes"]
@@ -45,8 +45,8 @@ class SwarmManagment():
 		self.orchastrator_config = self.etcd_manager.get_etcd_orchestrator_config()['platform']['orchestrator']
 		self.ssh_client = paramiko.SSHClient()
 		self.ssh_client.load_system_host_keys()
-		self.available_servers = self.orchastrator_config["available_servers"]
-		self.swarm_servers = self.orchastrator_config["swarm_servers"]
+		self.available_nodes = self.orchastrator_config["available_nodes"]
+		self.platform_nodes = self.orchastrator_config["platform_nodes"]
 		# self.user = self.orchastrator_config["user"]
 		# self.password = self.orchastrator_config["password"]
 		# self.master_nodes = self.orchastrator_config["master_nodes"]
@@ -76,23 +76,23 @@ class SwarmManagment():
 
 	def add_server(self, host_ips):
 		"""
-		Add server to available_servers
-		If the server consist in the self.available_servers
+		Add server to available_nodes
+		If the server consist in the self.available_nodes
 	 	it won't be add
 		Args:
 			host_ips(list or str)
 		Returns:
-			Append to self.available_servers the host_ips
+			Append to self.available_nodes the host_ips
 		"""
 		logger = Logger(filename = "orchastrator", logger_name = "SwarmManagment add_server", dirname="/aux1/ocorchestrator/")
 		if isinstance(host_ips, str):
-			if host_ips not in self.available_servers:
-				self.available_servers.append(host_ips)
+			if host_ips not in self.available_nodes:
+				self.available_nodes.append(host_ips)
 ###orchastrator.json way
-				# update_config("orchastrator.json", "available_servers", host_ips, state='add')
+				# update_config("orchastrator.json", "available_nodes", host_ips, state='add')
 ###orchastrator.json way
 ###etcd way
-				self.etcd_manager.write("/orchastrator/available_servers/{}".format(host_ips), "")
+				self.etcd_manager.write("/orchastrator/available_nodes/{}".format(host_ips), "")
 ###etcd way
 
 			else:
@@ -100,12 +100,12 @@ class SwarmManagment():
 				logger.info("The host ip is already in the list")
 				logger.clear_handler()
 		elif isinstance(host_ips, list):
-			self.available_servers = list(set(self.available_servers + host_ips))
+			self.available_nodes = list(set(self.available_nodes + host_ips))
 ###orchastrator.json way
-			# update_config("orchastrator.json", "available_servers", host_ips, state='add')
+			# update_config("orchastrator.json", "available_nodes", host_ips, state='add')
 ###orchastrator.json way
 ###etcd way
-			self.etcd_manager.write("/orchastrator/available_servers/{}".format(host_ips), "")
+			self.etcd_manager.write("/orchastrator/available_nodes/{}".format(host_ips), "")
 ###etcd way
 		else:
 			logger.error("Server should be list or string")
@@ -115,22 +115,22 @@ class SwarmManagment():
 
 	def add_swarm_server(self, host_ip):
 		"""
-		Add server to swarm_servers
+		Add server to platform_nodes
 		If the server consist in the list it won't be add
 		Args:
 			host_ips(str)
 		Returns:
-			Append to self.swarm_servers the host_ip
+			Append to self.platform_nodes the host_ip
 		"""
 		logger = Logger(filename = "orchastrator", logger_name = "SwarmManagment add_swarm_server", dirname="/aux1/ocorchestrator/")
 		if isinstance(host_ip, str):
-			if host_ip not in self.swarm_servers:
-				self.swarm_servers.append(host_ip)
+			if host_ip not in self.platform_nodes:
+				self.platform_nodes.append(host_ip)
 ###orchastrator.json way
-				# update_config("orchastrator.json", "swarm_servers", host_ip, state='add')
+				# update_config("orchastrator.json", "platform_nodes", host_ip, state='add')
 ###orchastrator.json way
 ###etcd way
-				self.etcd_manager.write("/orchastrator/swarm_servers/{}".format(host_ip), "")
+				self.etcd_manager.write("/orchastrator/platform_nodes/{}".format(host_ip), "")
 ###etcd way
 			else:
 				# print("The host ip is already in the list")
@@ -138,66 +138,66 @@ class SwarmManagment():
 				logger.clear_handler()
 
 
-	def list_available_servers(self):
+	def list_available_nodes(self):
 		"""
 		List the available servers remain
 		Returns:
-			self.available_servers(list)
+			self.available_nodes(list)
 		"""
 ###orchastrator.json way
-		# return parse_config("orchastrator.json")["available_servers"]
+		# return parse_config("orchastrator.json")["available_nodes"]
 ###orchastrator.json way
 ###etcd way
-		return self.orchastrator_config["available_servers"]
+		return self.orchastrator_config["available_nodes"]
 ###etcd way
 
 
-	def list_swarm_servers(self):
+	def list_platform_nodes(self):
 		"""
 		List the servers in the swarm
 		Returns:
-			self.swarm_servers(list)
+			self.platform_nodes(list)
 		"""
 ###orchastrator.json way
-		# return parse_config("orchastrator.json")["swarm_servers"]
+		# return parse_config("orchastrator.json")["platform_nodes"]
 ###orchastrator.json way
 ###etcd way
-		return self.orchastrator_config["swarm_servers"]
+		return self.orchastrator_config["platform_nodes"]
 ###etcd way
 
 
 	def remove_available_server(self, host_ip):
 		"""
-		Remove server ip from self.available_servers
+		Remove server ip from self.available_nodes
 		Args:
 			host_ip(str)
 		"""
-		self.available_servers.remove(host_ip)
+		self.available_nodes.remove(host_ip)
 ###orchastrator.json way
-		# update_config("orchastrator.json", "available_servers", host_ip, state='remove')
+		# update_config("orchastrator.json", "available_nodes", host_ip, state='remove')
 ###orchastrator.json way
 ###etcd way
-		self.etcd_manager.remove_key("/orchastrator/available_servers/{}".format(host_ip))
+		self.etcd_manager.remove_key("/orchastrator/available_nodes/{}".format(host_ip))
 ###etcd way
 
 
 	def remove_swarm_server(self, host_ip):
 		"""
-		Remove server ip from self.swarm_servers
+		Remove server ip from self.platform_nodes
 		Args:
 			host_ip(str)
 		"""
-		if host_ip in self.swarm_servers:
-			self.swarm_servers.remove(host_ip)
+		if host_ip in self.platform_nodes:
+			self.platform_nodes.remove(host_ip)
 ###orchastrator.json way
-			# update_config("orchastrator.json", "swarm_servers", host_ip, state='remove')
+			# update_config("orchastrator.json", "platform_nodes", host_ip, state='remove')
 ###orchastrator.json way
 ###etcd way
-			self.etcd_manager.remove_key("/orchastrator/swarm_servers/{}".format(host_ip))
+			self.etcd_manager.remove_key("/orchastrator/platform_nodes/{}".format(host_ip))
 ###etcd way
 		else:
 			logger = Logger(filename = "orchastrator", logger_name = "SwarmManagment remove_swarm_server", dirname="/aux1/ocorchestrator/")		
-			logger.error("Node {} can't be removed from swarm_servers (It is not in swarm_servers)".format(host_ip))
+			logger.error("Node {} can't be removed from platform_nodes (It is not in platform_nodes)".format(host_ip))
 			logger.clear_handler()			
 
 	def join_server_swarm(self, host_ip):
