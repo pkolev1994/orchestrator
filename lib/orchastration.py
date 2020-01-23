@@ -2,7 +2,7 @@ import docker
 
 
 #custom libs import
-sys.path.append('/aux0/customer/containers/orchestrator/')
+sys.path.append('/opt/containers/orchestrator/')
 from lib.swarming import SwarmManagment
 from lib.stats import StatsCollector
 from lib.containering import parse_config

@@ -1,8 +1,10 @@
-#!/usr/bin/env /usr/bin/python3
+#!/usr/bin/env /usr/bin/python3.6
 import sys
 import os
 import signal
 import socket
+import re
+
 
 if len(sys.argv) >= 3:
 	option = sys.argv[1]
@@ -20,6 +22,33 @@ else:
 	print("orchastrator_adm release node_ip")
 	print("====================================================")
 	sys.exit(0)
+
+
+
+if "ETCD_NODES" not in os.environ and option == "start" and option_2 == "api":
+	etcd_nodes = None
+	try:
+		etcd_nodes = sys.argv[3]
+	except:
+		print("====================================================")
+		print("Must be passed ETCD_NODES env variable!!")
+		print("Usage of orchastrator_adm start: ")
+		print("orchestrator_adm start api ETCD_NODES=host_ip,host_ip,host_ip")
+		print("====================================================")
+		sys.exit(0)
+	if re.search(r"ETCD_NODES=\d+\.\d+\.\d+\.\d+", etcd_nodes, re.I|re.S):
+		etcd = re.search(r"ETCD_NODES=(\d+\.\d+\.\d+\.\d+.*$)", etcd_nodes, re.I|re.S)
+		os.environ["ETCD_NODES"] = etcd.group(1)
+		os.system('echo "ETCD_NODES={}" >> /etc/environment'.format(etcd.group(1)))
+	else:
+		print("====================================================")
+		print("Must be passed ETCD_NODES env variable!!")
+		print("Usage of orchastrator_adm start: ")
+		print("orchestrator_adm start api ETCD_NODES=host_ip,host_ip,host_ip")
+		print("====================================================")
+		sys.exit(0)
+			
+
 
 if "ETCD_HOSTNAME" not in os.environ:
 	os.environ["ETCD_HOSTNAME"] = os.uname()[1]
@@ -43,9 +72,9 @@ def main():
 	if option == 'release':
 		socket_connect(option, option_2)
 	elif option == "start" and option_2 == "api":
-		print("Starting orchastrator api ...")
-		os.chdir("/aux0/customer/containers/orchestrator/bin/")
-		os.system("/usr/bin/python3.4 orchestration_api.py >/dev/null &")
+		print("Starting orchestrator api ...")
+		os.chdir("/opt/containers/orchestrator/bin/")
+		os.system("/usr/bin/python3.6 orchestration_api.py >/dev/null &")
 	elif option == "stop" and option_2 == "api":
 		pstring = "orchestration_api.py"
 		pid = None
@@ -61,8 +90,19 @@ def main():
 		# option_3 = sys.argv[3]
 		socket_connect(option, option_2)
 	elif option == 'start':
-		option_3 = sys.argv[3]
-		socket_connect(option, option_2, option_3)
+		try:
+			option_3 = sys.argv[3]
+			socket_connect(option, option_2, option_3)
+		except:
+			print("====================================================")
+			print("Usage of orchastrator_adm : ")
+			print("orchastrator_adm status")
+			print("orchastrator_adm start/stop api")
+			print("orchastrator_adm start/stop container_name node_ip")
+			print("orchastrator_adm release node_ip")
+			print("orchestrator_adm start api ETCD_NODES=host_ip,host_ip,host_ip")
+			print("====================================================")
+			sys.exit(0)			
 	elif option == 'status':
 		pstring = "orchestration_api.py"
 		pid = None
@@ -81,6 +121,7 @@ def main():
 		print("orchastrator_adm start/stop api")
 		print("orchastrator_adm start/stop container_name node_ip")
 		print("orchastrator_adm release node_ip")
+		print("orchestrator_adm start api ETCD_NODES=host_ip,host_ip,host_ip")
 		print("====================================================")
 		sys.exit(0)
 

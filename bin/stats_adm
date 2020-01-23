@@ -1,4 +1,4 @@
-#!/usr/bin/env /usr/bin/python3.4
+#!/usr/bin/env /usr/bin/python3.6
 import sys
 import os
 import signal
@@ -9,8 +9,8 @@ option = sys.argv[1]
 
 def start():
 	print("Starting stats_collector ...")
-	os.chdir("/aux0/customer/containers/orchestrator/bin/")
-	os.system("/usr/bin/python3.4 stats_collector.py >/dev/null &")
+	os.chdir("/opt/containers/orchestrator/bin/")
+	os.system("/usr/bin/python3.6 stats_collector.py >/dev/null &")
 
 def stop():
 	

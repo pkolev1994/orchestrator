@@ -14,33 +14,38 @@ orchestrator_adm start api => start orchastrator
 orchestrator_adm stop api  => stop orchastrator
 orchestrator_adm stop container  => ex.(orchestrator_adm stop smsc_conn_http_client_1)
 orchestrator_adm start appplication host_ip => ex.(orchestrator_adm start smsc_conn_http_client 10.102.7.123)
+orchestrator_adm release host_ip => Stops all running containers on the host and start them to the other hosts in the platform, move the released host from platform_nodes to available_nodes
 
 
 ####orchestrator etcd configuration
 /platform/orchestrator/dynamic_scaling => True(orchestrator make decisions for scaling up/down containers [should start the stats tool])
 									   => False(orchestrator will look only for the minimum quota to be loaded from each container)
 
-/platform/orchestrator/float_[app_type] => orchestrator is ensures always the value of the key to be a tunning container(if the container is down it will change it with running one)
+/platform/orchestrator/floating_containers  => json(key = float_app_type, value = app_type_\d+) orchestrator ensures always the value of the key to be a running container(if the container is down it will change it with running one)
 
-/platform/orchestrator/images => json(key = app_type, value =image) from where the orchestrator is looking from which image to be runned the specific app_type container
+/platform/orchestrator/images => url addres of the registry (ex. g2.pslab.opencode.com:5000) from where the orchestrator is looking from which image to be runned the specific app_type container
 
 /platform/orchestrator/logging_level => logging level of the orchestrator
 
-/platform/orchestrator/network_name => the network in which the orchestrator will run the containers
-
-/platform/orchestrator/platform_status => pushes on every 30 seconds the current state of the platform by hosts and app_types on them
+/platform/orchestrator/platform_status => pushes on every 15 seconds the current state of the platform by hosts and app_types on them
 
 /platform/orchestrator/token => for swarm if will be used
 
 /platform/orchestrator/master => for swarm if will be used(node that the new nodes from available_servers will be joined to it)
 
-/platform/orchestrator/[app_type]_min => the minimum containers that should be running and available by app_type
 
-/platform/orchestrator/[app_type]_per_node => maximum containers that should be running and available by app_type on node
+/platform/orchestrator/threshols => json(key = [app_type]_min|[app_type]_per_node, value=\d+), minimum containers that should be running and available by app_type and  maximum containers that should be running and available by app_type on node, ex. {'ussdc_br_min': 3, 'ussdc_br_per_node': 2, 'ussdc_conn_http_client_min': 3, 'ussdc_conn_http_client_per_node': 2}
 
-/platform/orchestrator/available_servers => nodes that can be joined if the maximum quota is overloaded and to start containers on them 
+/platform/orchestrator/available_nodes => nodes that can be joined if the maximum quota is overloaded and to start containers on them 
 
-/platform/orchestrator/swarm_servers => nodes that are playing in the platform and the containers can be runned on them
+/platform/orchestrator/platform_nodes => nodes that are playing in the platform and the containers can be runned on them
 
-/platform/orchestrator/types_instances/[app_type]/[app_type]_[digit]/ => ip address of the [app_type]_[digit](hostname)
+/platform/orchestrator/failed_nodes => nodes that are detected by orchestrator to be unresponsible(can't establish connection to node docker socket)
 
+/platform/orchestrator/types_instances/[app_type]/[app_type]_[digit]/ => json with key which is network name and value which is ip address of the [app_type]_[digit](hostname) , ex. etcd key => http://10.102.7.123:8100/v2/keys/platform/orchestrator/types_instances/smsc_br/smsc_br_3 , etcd value => {'external_macvlan': '10.102.7.83', 'internal_macvlan': '10.10.10.27'}
+NOTE:: Always should be defined network with name "internal_macvlan", which will be used for internal connectivity by all containers in the platform
+
+/platform/orchestrator/volumes => for which application types will be created docker volume for /aux0, ex. value of the key => {'smsc_br': 'True', 'smsc_conn_http_client': 'True', 'smsc_licmgr': 'True'} 
+
+
+/platform/orchestrator/who_is_master => logic for high availability for 1 failure => The master will push on each iteration to /platform/orchestrator/who_is_master in json format his hostname and a random_number. Each of the both running orchestrators will read in /platform/orchestrator/who_is_master and if the slave detected that on 2 one after another iterations, the random number is not changed, it will start running as master

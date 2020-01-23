@@ -5,7 +5,7 @@ import sys
 import re
 
 ###custom lib
-sys.path.append('/aux0/customer/containers/orchestrator/')
+sys.path.append('/opt/containers/orchestrator/')
 from lib.stats import StatsCollector
 
 HOST = 'localhost'

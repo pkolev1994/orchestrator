@@ -3,12 +3,12 @@ import re
 import docker
 import sys
 #custom libs
-sys.path.append('/aux0/customer/containers/orchestrator/')
+sys.path.append('/opt/containers/orchestrator/')
 from lib.containering import parse_config
 from lib.containering import update_config
-sys.path.append('/aux0/customer/containers/ocpytools/lib/')
+sys.path.append('/opt/containers/ocpytools/lib/')
 from logger import Logger
-from etcd_client import EtcdManagement
+from etcd3_client import EtcdManagement
 
 
 class SwarmManagment():

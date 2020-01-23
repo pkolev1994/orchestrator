@@ -6,7 +6,7 @@ import scp
 import socket
 
 #custom libs
-sys.path.append('/aux0/customer/containers/orchestrator/')
+sys.path.append('/opt/containers/orchestrator/')
 from lib.nodeconnection import Node
 from lib.containering import parse_config
 
